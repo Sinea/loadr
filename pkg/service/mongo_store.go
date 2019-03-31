@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"log"
 )
 
 type MongoConfig struct {
@@ -18,6 +17,7 @@ type MongoConfig struct {
 
 type mongoStore struct {
 	config MongoConfig
+	client *mongo.Client
 }
 
 func (*mongoStore) Get(token Token) (*Progress, error) {
@@ -32,7 +32,7 @@ func (*mongoStore) Delete(token Token) error {
 	panic("implement me")
 }
 
-func newMongoStore(config MongoConfig) ProgressStore {
+func newMongoStore(config MongoConfig) (ProgressStore, error) {
 
 	address := fmt.Sprintf("mongodb://%s", config.Address)
 	client, err := mongo.Connect(context.Background(), &options.ClientOptions{
@@ -40,20 +40,20 @@ func newMongoStore(config MongoConfig) ProgressStore {
 	})
 
 	if err != nil {
-		log.Fatal(err)
-
+		return nil, err
 	}
 
 	// Check the connection
-	err = client.Ping(context.TODO(), nil)
+	err = client.Ping(context.Background(), nil)
 
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	fmt.Println("Connected to MongoDB!")
 
 	return &mongoStore{
 		config: config,
-	}
+		client: client,
+	}, nil
 }
