@@ -47,3 +47,12 @@ func getConfigs() (service.NetConfig, service.NetConfig) {
 
 	return service.NetConfig{Address: backend}, service.NetConfig{Address: clients}
 }
+
+func getStore() service.ProgressStore {
+	mongo := strings.TrimSpace(os.Getenv("MONGO"))
+	if mongo != "" {
+
+	}
+
+	return nil
+}
