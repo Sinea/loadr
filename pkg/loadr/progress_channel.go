@@ -1,4 +1,4 @@
-package service
+package loadr
 
 type Channel interface {
 	Push(MetaProgress) error

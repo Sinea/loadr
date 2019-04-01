@@ -1,4 +1,4 @@
-package service
+package loadr
 
 type ProgressStore interface {
 	Get(token Token) (*Progress, error)

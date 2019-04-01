@@ -1,4 +1,4 @@
-package service
+package loadr
 
 type inMemoryChannel struct {
 	out    chan MetaProgress

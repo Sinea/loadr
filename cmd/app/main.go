@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Sinea/loadr/pkg/loadr"
 	"github.com/Sinea/loadr/pkg/service"
 	"log"
 	"os"
@@ -12,9 +13,9 @@ import (
 
 func main() {
 	channelConfig := getChannelConfig()
-	channel := service.NewChannel(channelConfig)
+	channel := loadr.NewChannel(channelConfig)
 	store := getStore()
-	s := service.New(store, channel)
+	s := loadr.New(store, channel)
 
 	backendConfig, clientsConfig := getConfigs()
 
@@ -28,13 +29,13 @@ func main() {
 func getChannelConfig() interface{} {
 	redis := os.Getenv("REDIS")
 	if strings.TrimSpace(redis) != "" {
-		return service.RedisConfig{Address: redis}
+		return loadr.RedisConfig{Address: redis}
 	}
 	// Maybe rabbit? Someday...
 	return nil
 }
 
-func getConfigs() (service.NetConfig, service.NetConfig) {
+func getConfigs() (loadr.NetConfig, loadr.NetConfig) {
 	backend := os.Getenv("BACKEND")
 	clients := os.Getenv("CLIENTS")
 
@@ -46,15 +47,15 @@ func getConfigs() (service.NetConfig, service.NetConfig) {
 		log.Fatal("invalid client address")
 	}
 
-	return service.NetConfig{Address: backend}, service.NetConfig{Address: clients}
+	return loadr.NetConfig{Address: backend}, loadr.NetConfig{Address: clients}
 }
 
-func getStore() service.ProgressStore {
+func getStore() loadr.ProgressStore {
 	var config interface{} = nil
 
 	mongo := strings.TrimSpace(os.Getenv("MONGO"))
 	if mongo != "" {
-		config = service.MongoConfig{
+		config = loadr.MongoConfig{
 			Address:    mongo,
 			User:       os.Getenv("MONGO_USER"),
 			Pass:       os.Getenv("MONGO_PASS"),
@@ -63,7 +64,7 @@ func getStore() service.ProgressStore {
 		}
 	}
 
-	if store, err := service.NewStore(config); err != nil {
+	if store, err := loadr.NewStore(config); err != nil {
 		log.Fatal(err)
 	} else {
 		return store
