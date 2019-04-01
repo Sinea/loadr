@@ -30,3 +30,16 @@ type NetConfig struct {
 type Service interface {
 	Listen(http, ws NetConfig) error
 }
+
+type ProgressStore interface {
+	Get(token Token) (*Progress, error)
+	Set(token Token, progress *Progress) error
+	Delete(token Token) error
+}
+
+type Channel interface {
+	Push(MetaProgress) error
+	Progresses() <-chan MetaProgress
+	Errors() <-chan error
+	Close() error
+}
