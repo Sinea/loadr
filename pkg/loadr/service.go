@@ -31,10 +31,10 @@ func (s *service) Listen(backend, clients NetConfig) error {
 		backendEndpoint.Logger.Fatal(backendEndpoint.Start(backend.Address))
 	}()
 
-	e := echo.New()
-	e.GET("/:token", s.wsHandler)
+	clientsEndpoint := echo.New()
+	clientsEndpoint.GET("/:token", s.wsHandler)
 	go func() {
-		e.Logger.Fatal(e.Start(clients.Address))
+		clientsEndpoint.Logger.Fatal(clientsEndpoint.Start(clients.Address))
 	}()
 
 	go func() {
