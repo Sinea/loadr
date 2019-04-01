@@ -61,14 +61,14 @@ func (s *service) Listen(backend, clients NetConfig) error {
 func (s *service) wsHandler(c echo.Context) error {
 	token := Token(c.Param("token"))
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
-	if err != nil {
-		return err
-	}
 
+	if err != nil {
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
 	if progress, err := s.store.Get(token); err == nil {
 		if err := ws.WriteJSON(progress); err != nil {
 			s.errors <- fmt.Errorf("error writing initial progress state: %s", err)
-			return err
+			return c.String(http.StatusInternalServerError, err.Error())
 		}
 	} else {
 		s.errors <- fmt.Errorf("error retrieving initial progress state: %s", err)
@@ -85,38 +85,39 @@ func (s *service) updateProgress(c echo.Context) error {
 	update := &UpdateProgressRequest{}
 
 	if err := c.Bind(update); err != nil {
-		log.Println(err)
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
-
 	if err := s.store.Set(token, &update.Progress); err != nil {
+		err := fmt.Errorf("error saving progress: %s", err)
+		s.errors <- err
 		if update.Guarantee >= Storage {
-			s.errors <- fmt.Errorf("error saving progress: %s", err)
-			return err
+			return c.String(http.StatusInternalServerError, err.Error())
 		}
 	}
-
 	if err := s.channel.Push(MetaProgress{token, update.Progress}); err != nil {
+		err := fmt.Errorf("error broadcasting progress: %s", err)
+		s.errors <- err
 		if update.Guarantee >= Broadcast {
-			s.errors <- fmt.Errorf("error broadcasting progress: %s", err)
-			return err
+			return c.String(http.StatusInternalServerError, err.Error())
 		}
 	}
-
-	return nil
+	return c.NoContent(http.StatusOK)
 }
 
 func (s *service) deleteProgress(c echo.Context) error {
-	token := c.Param("token")
-	if clients, ok := s.clients[Token(token)]; ok {
+	tokenString := c.Param("token")
+	token := Token(tokenString)
+	if clients, ok := s.clients[token]; ok {
 		for _, client := range clients {
 			closeWebSocket(client)
 		}
 	}
-	if err := s.store.Delete(Token(token)); err != nil {
+	s.clients[token] = make([]*websocket.Conn, 0)
+	if err := s.store.Delete(token); err != nil {
 		s.errors <- fmt.Errorf("error deleting progress for token '%s' : %s", token, err)
 		return c.NoContent(http.StatusNotFound)
 	}
-	return nil
+	return c.NoContent(http.StatusOK)
 }
 
 func closeWebSocket(ws *websocket.Conn) {
