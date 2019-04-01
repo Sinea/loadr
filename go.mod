@@ -16,4 +16,5 @@ require (
 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c // indirect
 	golang.org/x/net v0.0.0-20190328230028-74de082e2cca
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6 // indirect
+	gopkg.in/mgo.v2 v2.0.0-20180705113604-9856a29383ce
 )

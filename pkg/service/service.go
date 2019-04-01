@@ -25,8 +25,8 @@ type UpdateProgressRequest struct {
 }
 
 type Progress struct {
-	Stage    string  `json:"stage"`
-	Progress float32 `json:"progress"`
+	Stage    string  `json:"stage" bson:"stage"`
+	Progress float32 `json:"progress" bson:"progress"`
 }
 
 type MetaProgress struct {

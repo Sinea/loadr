@@ -1,10 +1,9 @@
 package service
 
 import (
-	"context"
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type MongoConfig struct {
@@ -16,44 +15,50 @@ type MongoConfig struct {
 }
 
 type mongoStore struct {
-	config MongoConfig
-	client *mongo.Client
+	config  MongoConfig
+	session *mgo.Session
 }
 
-func (*mongoStore) Get(token Token) (*Progress, error) {
-	panic("implement me")
+func (m *mongoStore) Get(token Token) (p *Progress, err error) {
+	collection := m.session.DB(m.config.Database).C(m.config.Collection)
+	query := collection.FindId(token)
+	meta := MetaProgress{}
+	err = query.One(&meta)
+	p = &meta.Progress
+	return
 }
 
-func (*mongoStore) Set(token Token, progress *Progress) error {
-	panic("implement me")
+func (m *mongoStore) Set(token Token, progress *Progress) error {
+	collection := m.session.DB(m.config.Database).C(m.config.Collection)
+	_, err := collection.Upsert(bson.M{"_id": token}, bson.M{"progress": progress})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (*mongoStore) Delete(token Token) error {
-	panic("implement me")
+func (m *mongoStore) Delete(token Token) (err error) {
+	collection := m.session.DB(m.config.Database).C(m.config.Collection)
+	return collection.Remove(bson.M{"_id": token})
 }
 
 func newMongoStore(config MongoConfig) (ProgressStore, error) {
-
-	address := fmt.Sprintf("mongodb://%s", config.Address)
-	client, err := mongo.Connect(context.Background(), &options.ClientOptions{
-		Hosts: []string{address},
-	})
+	address := fmt.Sprintf("mongodb://%s:%s@%s/%s", config.User, config.Pass, config.Address, config.Database)
+	session, err := mgo.Dial(address)
 
 	if err != nil {
 		return nil, err
 	}
 
-	// Check the connection
-	err = client.Ping(context.Background(), nil)
-
-	if err != nil {
+	if err := session.Ping(); err != nil {
+		session.Close()
 		return nil, err
 	}
-
-	fmt.Println("Connected to MongoDB!")
 
 	return &mongoStore{
-		config: config,
-		client: client,
+		config:  config,
+		session: session,
 	}, nil
 }
