@@ -22,8 +22,7 @@ func main() {
 	}
 
 	for {
-		err := <-s.Errors()
-		log.Println(err)
+		log.Println(<-s.Errors())
 	}
 }
 
