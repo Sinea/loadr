@@ -147,11 +147,9 @@ func closeWebSocket(ws *websocket.Conn) {
 	}
 }
 
-func New(channel Channel) Service {
+func New(store ProgressStore, channel Channel) Service {
 	return &service{
-		store: &inMemory{
-			data: map[Token]*Progress{},
-		},
+		store:   store,
 		channel: channel,
 		clients: map[Token][]*websocket.Conn{},
 	}

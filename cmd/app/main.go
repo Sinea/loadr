@@ -13,7 +13,8 @@ import (
 func main() {
 	channelConfig := getChannelConfig()
 	channel := service.NewChannel(channelConfig)
-	s := service.New(channel)
+	store := getStore()
+	s := service.New(store, channel)
 
 	backendConfig, clientsConfig := getConfigs()
 
@@ -49,9 +50,23 @@ func getConfigs() (service.NetConfig, service.NetConfig) {
 }
 
 func getStore() service.ProgressStore {
+	var config interface{} = nil
+
 	mongo := strings.TrimSpace(os.Getenv("MONGO"))
 	if mongo != "" {
+		config = service.MongoConfig{
+			Address:    mongo,
+			User:       os.Getenv("MONGO_USER"),
+			Pass:       os.Getenv("MONGO_PASS"),
+			Database:   os.Getenv("MONGO_DATABASE"),
+			Collection: os.Getenv("MONGO_COLLECTION"),
+		}
+	}
 
+	if store, err := service.NewStore(config); err != nil {
+		log.Fatal(err)
+	} else {
+		return store
 	}
 
 	return nil
