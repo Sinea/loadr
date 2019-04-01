@@ -27,7 +27,13 @@ type NetConfig struct {
 	Address string
 }
 
+type ErrorProvider interface {
+	Errors() <-chan error
+}
+
 type Service interface {
+	ErrorProvider
+
 	Listen(http, ws NetConfig) error
 }
 
@@ -38,8 +44,9 @@ type ProgressStore interface {
 }
 
 type Channel interface {
+	ErrorProvider
+
 	Push(MetaProgress) error
 	Progresses() <-chan MetaProgress
-	Errors() <-chan error
 	Close() error
 }

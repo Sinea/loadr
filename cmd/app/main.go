@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 )
 
 // TODO : Certificates for secure transport
@@ -22,7 +21,10 @@ func main() {
 		log.Fatal("could not start listening")
 	}
 
-	time.Sleep(time.Hour)
+	for {
+		err := <-s.Errors()
+		log.Println(err)
+	}
 }
 
 func getChannelConfig() interface{} {

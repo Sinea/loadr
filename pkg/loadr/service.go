@@ -5,6 +5,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"log"
+	"net/http"
 )
 
 var (
@@ -15,6 +16,11 @@ type service struct {
 	store   ProgressStore
 	channel Channel
 	clients map[Token][]*websocket.Conn
+	errors  chan error
+}
+
+func (s *service) Errors() <-chan error {
+	return s.errors
 }
 
 func (s *service) Listen(backend, clients NetConfig) error {
@@ -22,27 +28,29 @@ func (s *service) Listen(backend, clients NetConfig) error {
 	backendEndpoint.POST("/:token", s.updateProgress)
 	backendEndpoint.DELETE("/:token", s.deleteProgress)
 	go func() {
-		log.Printf("Listening for backend information on %s\n", backend.Address)
 		backendEndpoint.Logger.Fatal(backendEndpoint.Start(backend.Address))
 	}()
 
 	e := echo.New()
 	e.GET("/:token", s.wsHandler)
 	go func() {
-		log.Printf("Waiting for clients on %s\n", clients.Address)
 		e.Logger.Fatal(e.Start(clients.Address))
 	}()
 
 	go func() {
 		for {
-			p := <-s.channel.Progresses()
-			if clients, ok := s.clients[p.Token]; ok {
-				for _, client := range clients {
-					if err := client.WriteJSON(p.Progress); err != nil {
-						log.Printf("error writing to client: %s\n", err)
-						closeWebSocket(client)
+			select {
+			case p := <-s.channel.Progresses():
+				if clients, ok := s.clients[p.Token]; ok {
+					for _, client := range clients {
+						if err := client.WriteJSON(p.Progress); err != nil {
+							s.errors <- fmt.Errorf("error writing to client: %s", err)
+							closeWebSocket(client)
+						}
 					}
 				}
+			case err := <-s.channel.Errors():
+				s.errors <- err
 			}
 		}
 	}()
@@ -59,11 +67,11 @@ func (s *service) wsHandler(c echo.Context) error {
 
 	if progress, err := s.store.Get(token); err == nil {
 		if err := ws.WriteJSON(progress); err != nil {
-			log.Printf("error writing initial progress state: %s\n", err)
+			s.errors <- fmt.Errorf("error writing initial progress state: %s", err)
 			return err
 		}
 	} else {
-		log.Printf("error retrieving initial progress state: %s\n", err)
+		s.errors <- fmt.Errorf("error retrieving initial progress state: %s", err)
 	}
 
 	s.clients[token] = append(s.clients[token], ws)
@@ -82,14 +90,14 @@ func (s *service) updateProgress(c echo.Context) error {
 
 	if err := s.store.Set(token, &update.Progress); err != nil {
 		if update.Guarantee >= Storage {
-			log.Printf("error saving progress: %s\n", err)
+			s.errors <- fmt.Errorf("error saving progress: %s", err)
 			return err
 		}
 	}
 
 	if err := s.channel.Push(MetaProgress{token, update.Progress}); err != nil {
 		if update.Guarantee >= Broadcast {
-			log.Printf("error broadcasting progress: %s\n", err)
+			s.errors <- fmt.Errorf("error broadcasting progress: %s", err)
 			return err
 		}
 	}
@@ -105,7 +113,8 @@ func (s *service) deleteProgress(c echo.Context) error {
 		}
 	}
 	if err := s.store.Delete(Token(token)); err != nil {
-		return fmt.Errorf("error deleting progress for token '%s' : %s", token, err)
+		s.errors <- fmt.Errorf("error deleting progress for token '%s' : %s", token, err)
+		return c.NoContent(http.StatusNotFound)
 	}
 	return nil
 }
@@ -121,5 +130,6 @@ func New(store ProgressStore, channel Channel) Service {
 		store:   store,
 		channel: channel,
 		clients: map[Token][]*websocket.Conn{},
+		errors:  make(chan error),
 	}
 }
