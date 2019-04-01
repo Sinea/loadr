@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/Sinea/loadr/pkg/loadr"
-	"github.com/Sinea/loadr/pkg/service"
 	"log"
 	"os"
 	"strings"
