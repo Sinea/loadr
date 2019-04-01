@@ -18,13 +18,12 @@ services:
     ports:
       - "6379:6379"
   loadr:
-    container_name: loadr
     build:
       context: .
       dockerfile: ./cmd/app/Dockerfile
     ports:
-      - "8080:8080"
-      - "9090:9090"
+      - "8080-8090:8080"
+      - "9090-9100:9090"
     depends_on:
       - mongo
       - redis
