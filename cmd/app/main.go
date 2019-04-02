@@ -66,7 +66,7 @@ func getStore() loadr.ProgressStore {
 	}
 
 	if store, err := loadr.NewStore(config); err != nil {
-		log.Fatal(err)
+		log.Fatalf("error creating store: %s", err)
 	} else {
 		return store
 	}
