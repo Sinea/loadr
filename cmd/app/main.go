@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/Sinea/loadr/pkg/loadr"
 	"log"
 	"os"
 	"strings"
+
+	"github.com/Sinea/loadr/pkg/loadr"
 )
 
 // TODO : Certificates for secure transport
@@ -35,7 +36,7 @@ func getChannelConfig() interface{} {
 	return nil
 }
 
-func getConfigs() (loadr.NetConfig, loadr.NetConfig) {
+func getConfigs() (backendCfg, frontendCfg loadr.NetConfig) {
 	backend := os.Getenv("BACKEND")
 	clients := os.Getenv("CLIENTS")
 
@@ -51,7 +52,7 @@ func getConfigs() (loadr.NetConfig, loadr.NetConfig) {
 }
 
 func getStore() loadr.ProgressStore {
-	var config interface{} = nil
+	var config interface{}
 
 	mongo := strings.TrimSpace(os.Getenv("MONGO"))
 	if mongo != "" {

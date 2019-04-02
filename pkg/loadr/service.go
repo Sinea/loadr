@@ -2,21 +2,20 @@ package loadr
 
 import (
 	"fmt"
-	"github.com/gorilla/websocket"
-	"github.com/labstack/echo"
+	"io"
 	"log"
 	"net/http"
-)
 
-var (
-	upgrader = websocket.Upgrader{}
+	"github.com/gorilla/websocket"
+	"github.com/labstack/echo"
 )
 
 type service struct {
-	store   ProgressStore
-	channel Channel
-	clients map[Token][]*websocket.Conn
-	errors  chan error
+	upgrader websocket.Upgrader
+	store    ProgressStore
+	channel  Channel
+	clients  map[Token][]*websocket.Conn
+	errors   chan error
 }
 
 func (s *service) Errors() <-chan error {
@@ -60,7 +59,7 @@ func (s *service) Listen(backend, clients NetConfig) error {
 
 func (s *service) wsHandler(c echo.Context) error {
 	token := Token(c.Param("token"))
-	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
+	ws, err := s.upgrader.Upgrade(c.Response(), c.Request(), nil)
 
 	if err != nil {
 		return c.String(http.StatusInternalServerError, err.Error())
@@ -120,7 +119,7 @@ func (s *service) deleteProgress(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-func closeWebSocket(ws *websocket.Conn) {
+func closeWebSocket(ws io.Closer) {
 	if err := ws.Close(); err != nil {
 		log.Println("error closing the socket")
 	}
@@ -128,9 +127,10 @@ func closeWebSocket(ws *websocket.Conn) {
 
 func New(store ProgressStore, channel Channel) Service {
 	return &service{
-		store:   store,
-		channel: channel,
-		clients: map[Token][]*websocket.Conn{},
-		errors:  make(chan error),
+		upgrader: websocket.Upgrader{},
+		store:    store,
+		channel:  channel,
+		clients:  map[Token][]*websocket.Conn{},
+		errors:   make(chan error),
 	}
 }

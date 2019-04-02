@@ -3,6 +3,7 @@ package loadr
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -49,22 +50,21 @@ func (r *redisChannel) read() {
 	// Cleanup crew
 	defer func() {
 		if err := connection.Close(); err != nil {
-			r.errors <- fmt.Errorf("error closing connection: %s\n", err)
+			r.errors <- fmt.Errorf("error closing connection: %s", err)
 		}
 	}()
 
 	psc := redis.PubSubConn{Conn: connection}
 	if err := psc.PSubscribe(queueName); err != nil {
-		r.errors <- fmt.Errorf("error subscribing: %s\n", err)
+		r.errors <- fmt.Errorf("error subscribing: %s", err)
 		return
 	}
 
 	for r.isRunning {
-		switch v := psc.Receive().(type) {
-		case redis.PMessage:
+		if message, ok := psc.Receive().(redis.Message); ok {
 			p := MetaProgress{}
-			if err := json.Unmarshal(v.Data, &p); err != nil {
-				r.errors <- fmt.Errorf("error unmarshalling progress: %s\n", err)
+			if err := json.Unmarshal(message.Data, &p); err != nil {
+				r.errors <- fmt.Errorf("error unmarshalling progress: %s", err)
 			} else {
 				r.out <- p
 			}
