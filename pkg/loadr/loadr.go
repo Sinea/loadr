@@ -9,13 +9,13 @@ const (
 type Token string
 
 type UpdateProgressRequest struct {
-	Guarantee uint     `json:"guarantee"`
+	Guarantee uint     `json:"guarantee" validate:"min=0"`
 	Progress  Progress `json:"progress"`
 }
 
 type Progress struct {
-	Stage    string  `json:"stage" bson:"stage"`
-	Progress float32 `json:"progress" bson:"progress"`
+	Stage    string  `json:"stage" bson:"stage" validate:"min=1,max=200,regexp=^[a-zA-Z0-9]*$"`
+	Progress float32 `json:"progress" bson:"progress" validate:"min=0,max:1"`
 }
 
 type MetaProgress struct {

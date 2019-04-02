@@ -2,6 +2,7 @@ package loadr
 
 import (
 	"fmt"
+	"gopkg.in/validator.v2"
 	"io"
 	"log"
 	"net/http"
@@ -85,6 +86,9 @@ func (s *service) updateProgress(c echo.Context) error {
 
 	if err := c.Bind(update); err != nil {
 		return c.String(http.StatusInternalServerError, err.Error())
+	}
+	if err := validator.Validate(update); err != nil {
+		return err
 	}
 	if err := s.store.Set(token, &update.Progress); err != nil {
 		err := fmt.Errorf("error saving progress: %s", err)
