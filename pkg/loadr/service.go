@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
@@ -12,11 +13,13 @@ import (
 )
 
 type service struct {
-	upgrader websocket.Upgrader
-	store    ProgressStore
-	channel  Channel
-	clients  map[Token][]*websocket.Conn
-	errors   chan error
+	upgrader        websocket.Upgrader
+	store           ProgressStore
+	channel         Channel
+	clients         map[Token][]*websocket.Conn
+	errors          chan error
+	cleanupInterval time.Duration
+	isCleaningUp    bool
 }
 
 func (s *service) Errors() <-chan error {
@@ -38,24 +41,56 @@ func (s *service) Listen(backend, clients NetConfig) error {
 	}()
 
 	go func() {
+		ticker := time.NewTicker(s.cleanupInterval)
 		for {
 			select {
 			case p := <-s.channel.Progresses():
-				if clients, ok := s.clients[p.Token]; ok {
-					for _, client := range clients {
-						if err := client.WriteJSON(p.Progress); err != nil {
-							s.errors <- fmt.Errorf("error writing to client: %s", err)
-							closeWebSocket(client)
-						}
-					}
-				}
+				s.handleProgress(p)
 			case err := <-s.channel.Errors():
 				s.errors <- err
+			case <-ticker.C:
+				go s.cleanupClients()
 			}
 		}
 	}()
 
 	return nil
+}
+
+// Handle an incoming progress
+func (s *service) handleProgress(p MetaProgress) {
+	if clients, ok := s.clients[p.Token]; ok {
+		for _, client := range clients {
+			if err := client.WriteJSON(p.Progress); err != nil {
+				s.errors <- fmt.Errorf("error writing to client: %s", err)
+				closeWebSocket(client)
+			}
+		}
+	}
+}
+
+// Cleanup client connections
+func (s *service) cleanupClients() {
+	if s.isCleaningUp {
+		return
+	}
+	s.isCleaningUp = true
+	// TODO : Lock each token
+	for token, clients := range s.clients {
+		remaining := make([]*websocket.Conn, 0)
+		for _, c := range clients {
+			if err := c.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
+				log.Printf("error setting deadline %s", err)
+			}
+			if _, _, err := c.ReadMessage(); err != nil && websocket.IsCloseError(err, websocket.CloseGoingAway) {
+				closeWebSocket(c)
+			} else {
+				remaining = append(remaining, c)
+			}
+		}
+		s.clients[token] = remaining
+	}
+	s.isCleaningUp = false
 }
 
 func (s *service) wsHandler(c echo.Context) error {
@@ -125,16 +160,17 @@ func (s *service) deleteProgress(c echo.Context) error {
 
 func closeWebSocket(ws io.Closer) {
 	if err := ws.Close(); err != nil {
-		log.Println("error closing the socket")
+		log.Println("error closing client socket")
 	}
 }
 
 func New(store ProgressStore, channel Channel) Service {
 	return &service{
-		upgrader: websocket.Upgrader{},
-		store:    store,
-		channel:  channel,
-		clients:  map[Token][]*websocket.Conn{},
-		errors:   make(chan error),
+		cleanupInterval: time.Second * 3,
+		upgrader:        websocket.Upgrader{},
+		store:           store,
+		channel:         channel,
+		clients:         map[Token][]*websocket.Conn{},
+		errors:          make(chan error),
 	}
 }
