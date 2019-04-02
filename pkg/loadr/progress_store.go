@@ -5,6 +5,6 @@ func NewStore(config interface{}) (ProgressStore, error) {
 	case MongoConfig:
 		return newMongoStore(&c)
 	default:
-		return &inMemory{}, nil
+		return newInMemoryStore()
 	}
 }
