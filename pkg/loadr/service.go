@@ -2,13 +2,13 @@ package loadr
 
 import (
 	"fmt"
-	"gopkg.in/validator.v2"
 	"io"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
+	"gopkg.in/validator.v2"
 )
 
 type service struct {
