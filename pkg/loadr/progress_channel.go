@@ -5,9 +5,6 @@ func NewChannel(config interface{}) Channel {
 	case RedisConfig:
 		return newRedisChannel(c)
 	default:
-		return &inMemoryChannel{
-			errors: make(chan error),
-			out:    make(chan MetaProgress),
-		}
+		return newInMemoryChannel()
 	}
 }

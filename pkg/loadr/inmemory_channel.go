@@ -21,3 +21,10 @@ func (c *inMemoryChannel) Push(progress MetaProgress) error {
 func (c *inMemoryChannel) Progresses() <-chan MetaProgress {
 	return c.out
 }
+
+func newInMemoryChannel() Channel {
+	return &inMemoryChannel{
+		errors: make(chan error),
+		out:    make(chan MetaProgress),
+	}
+}
