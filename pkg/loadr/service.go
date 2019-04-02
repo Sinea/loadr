@@ -172,7 +172,7 @@ func (s *service) closeWebSocket(ws io.Closer) {
 func New(store ProgressStore, channel Channel) Service {
 	return &service{
 		logger:          log.New(os.Stdout, "", 0),
-		cleanupInterval: time.Second * 3,
+		cleanupInterval: time.Second * 30,
 		upgrader:        websocket.Upgrader{},
 		store:           store,
 		channel:         channel,
