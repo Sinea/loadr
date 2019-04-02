@@ -23,6 +23,10 @@ type service struct {
 	logger          *log.Logger
 }
 
+func (s *service) SetCleanupInterval(duration time.Duration) {
+	s.cleanupInterval = duration
+}
+
 func (s *service) Errors() <-chan error {
 	return s.errors
 }

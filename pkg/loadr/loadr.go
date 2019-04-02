@@ -1,5 +1,7 @@
 package loadr
 
+import "time"
+
 const (
 	_ uint = iota
 	Storage
@@ -35,6 +37,7 @@ type Service interface {
 	ErrorProvider
 
 	Listen(http, ws NetConfig) error
+	SetCleanupInterval(duration time.Duration)
 }
 
 type ProgressStore interface {
