@@ -50,13 +50,19 @@ func (r *redisChannel) read() {
 	// Cleanup crew
 	defer func() {
 		if err := connection.Close(); err != nil {
-			r.errors <- fmt.Errorf("error closing connection: %s", err)
+			r.errors <- &Error{
+				Message: fmt.Sprintf("error closing connection: %s", err),
+				Code:    ChannelCloseError,
+			}
 		}
 	}()
 
 	psc := redis.PubSubConn{Conn: connection}
 	if err := psc.PSubscribe(queueName); err != nil {
-		r.errors <- fmt.Errorf("error subscribing: %s", err)
+		r.errors <- &Error{
+			Message: fmt.Sprintf("error subscribing: %s", err),
+			Code:    ChannelSubscribeError,
+		}
 		return
 	}
 
@@ -64,7 +70,10 @@ func (r *redisChannel) read() {
 		if message, ok := psc.Receive().(redis.Message); ok {
 			p := MetaProgress{}
 			if err := json.Unmarshal(message.Data, &p); err != nil {
-				r.errors <- fmt.Errorf("error unmarshalling progress: %s", err)
+				r.errors <- &Error{
+					Message: fmt.Sprintf("error unmarshalling progress: %s", err),
+					Code:    ChannelUnmarshalError,
+				}
 			} else {
 				r.out <- p
 			}

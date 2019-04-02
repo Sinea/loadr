@@ -6,7 +6,16 @@ const (
 	_ uint = iota
 	Storage
 	Broadcast
+
+	ChannelCloseError = 1 + iota
+	ChannelSubscribeError
+	ChannelUnmarshalError
 )
+
+type Error struct {
+	Code    uint
+	Message string
+}
 
 type Token string
 

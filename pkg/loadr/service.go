@@ -86,6 +86,7 @@ func (s *service) cleanupClients() {
 			if err := c.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
 				s.logger.Printf("error setting deadline %s", err)
 			}
+			// TODO : Dive deeper
 			if _, _, err := c.ReadMessage(); err != nil && websocket.IsCloseError(err, websocket.CloseGoingAway) {
 				s.closeWebSocket(c)
 			} else {
