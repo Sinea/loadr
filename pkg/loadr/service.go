@@ -35,15 +35,11 @@ func (s *service) Listen(backend, clients NetConfig) error {
 	backendEndpoint := echo.New()
 	backendEndpoint.POST("/:token", s.updateProgress)
 	backendEndpoint.DELETE("/:token", s.deleteProgress)
-	go func() {
-		backendEndpoint.Logger.Fatal(backendEndpoint.Start(backend.Address))
-	}()
+	go startServer(backendEndpoint, backend)
 
 	clientsEndpoint := echo.New()
 	clientsEndpoint.GET("/:token", s.wsHandler)
-	go func() {
-		clientsEndpoint.Logger.Fatal(clientsEndpoint.Start(clients.Address))
-	}()
+	go startServer(clientsEndpoint, clients)
 
 	go func() {
 		ticker := time.NewTicker(s.cleanupInterval)
@@ -60,6 +56,17 @@ func (s *service) Listen(backend, clients NetConfig) error {
 	}()
 
 	return nil
+}
+
+func startServer(server *echo.Echo, config NetConfig) {
+	var err error
+	if config.KeyFile != "" && config.CertFile != "" {
+		err = server.StartTLS(config.Address, config.CertFile, config.KeyFile)
+	} else {
+		err = server.Start(config.Address)
+	}
+
+	server.Logger.Fatal(err)
 }
 
 // Handle an incoming progress

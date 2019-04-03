@@ -35,7 +35,9 @@ type MetaProgress struct {
 }
 
 type NetConfig struct {
-	Address string
+	Address  string
+	CertFile string
+	KeyFile  string
 }
 
 type ErrorProvider interface {
