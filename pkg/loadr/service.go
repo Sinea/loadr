@@ -81,21 +81,32 @@ func (s *service) cleanupClients() {
 	}
 	s.isCleaningUp = true
 	for token, clients := range s.clients {
-		remaining := make([]*websocket.Conn, 0)
-		for _, c := range clients {
-			if err := c.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
-				s.logger.Printf("error setting deadline %s", err)
-			}
-			// TODO : Dive deeper
-			if _, _, err := c.ReadMessage(); err != nil && websocket.IsCloseError(err, websocket.CloseGoingAway) {
+		// TODO : Lock
+		s.clients[token] = s.cleanupTokenClients(clients)
+	}
+	s.isCleaningUp = false
+}
+
+func (s *service) cleanupTokenClients(clients []*websocket.Conn) []*websocket.Conn {
+	remaining := make([]*websocket.Conn, 0)
+	for _, c := range clients {
+		if err := c.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
+			s.logger.Printf("error setting deadline %s", err)
+			s.closeWebSocket(c)
+			continue
+		}
+		if _, _, err := c.ReadMessage(); err != nil {
+			if _, ok := err.(*websocket.CloseError); ok {
 				s.closeWebSocket(c)
 			} else {
 				remaining = append(remaining, c)
 			}
+		} else {
+			remaining = append(remaining, c)
 		}
-		s.clients[token] = remaining
 	}
-	s.isCleaningUp = false
+
+	return remaining
 }
 
 func (s *service) wsHandler(c echo.Context) error {
