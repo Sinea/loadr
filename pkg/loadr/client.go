@@ -7,7 +7,6 @@ import (
 
 type client struct {
 	socket *websocket.Conn
-	token  Token
 }
 
 func (c *client) IsAlive() bool {
@@ -21,10 +20,6 @@ func (c *client) IsAlive() bool {
 	}
 
 	return true
-}
-
-func (c *client) Token() Token {
-	return c.token
 }
 
 func (c *client) Write(progress *Progress) error {

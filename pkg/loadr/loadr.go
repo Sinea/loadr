@@ -66,14 +66,18 @@ type Channel interface {
 }
 
 type Client interface {
-	Token() Token
 	Write(progress *Progress) error
 	Close() error
 	IsAlive() bool
 }
 
-type ClientListener interface {
-	Wait(config NetConfig) <-chan Client
+type clientSubscription struct {
+	Token  Token
+	Client Client
+}
+
+type clientListener interface {
+	Wait(config NetConfig) <-chan *clientSubscription
 }
 
 type Dispatcher interface {

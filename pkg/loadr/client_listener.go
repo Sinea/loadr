@@ -7,13 +7,13 @@ import (
 	"net/http"
 )
 
-type clientListener struct {
+type websocketListener struct {
 	upgrader websocket.Upgrader
 	logger   *log.Logger
-	clients  chan Client
+	clients  chan *clientSubscription
 }
 
-func (c *clientListener) Wait(config NetConfig) <-chan Client {
+func (c *websocketListener) Wait(config NetConfig) <-chan *clientSubscription {
 	clientsEndpoint := echo.New()
 	clientsEndpoint.GET("/:token", c.wsHandler)
 	go startServer(clientsEndpoint, config)
@@ -21,7 +21,7 @@ func (c *clientListener) Wait(config NetConfig) <-chan Client {
 	return c.clients
 }
 
-func (c *clientListener) wsHandler(ctx echo.Context) error {
+func (c *websocketListener) wsHandler(ctx echo.Context) error {
 	token := Token(ctx.Param("token"))
 	connection, err := c.upgrader.Upgrade(ctx.Response(), ctx.Request(), nil)
 
@@ -30,11 +30,16 @@ func (c *clientListener) wsHandler(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
-	c.clients <- &client{socket: connection, token: token}
+	c.clients <- &clientSubscription{
+		Token: token,
+		Client: &client{
+			socket: connection,
+		},
+	}
 
 	return nil
 }
 
-func newClientListener(logger *log.Logger) ClientListener {
-	return &clientListener{logger: logger}
+func newClientListener(logger *log.Logger) clientListener {
+	return &websocketListener{logger: logger}
 }
