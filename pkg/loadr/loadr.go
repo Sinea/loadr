@@ -64,3 +64,19 @@ type Channel interface {
 	Progresses() <-chan MetaProgress
 	Close() error
 }
+
+type Client interface {
+	Token() Token
+	Write(progress *Progress) error
+	Close() error
+	IsAlive() bool
+}
+
+type ClientListener interface {
+	Wait(config NetConfig) <-chan Client
+}
+
+type Dispatcher interface {
+	Dispatch(token Token, progress Progress)
+	Cleanup()
+}

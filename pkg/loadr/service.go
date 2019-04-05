@@ -1,7 +1,7 @@
 package loadr
 
 import (
-	"io"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,7 +16,7 @@ type service struct {
 	upgrader        websocket.Upgrader
 	store           ProgressStore
 	channel         Channel
-	clients         map[Token][]*websocket.Conn
+	clients         map[Token][]Client
 	errors          chan error
 	cleanupInterval time.Duration
 	isCleaningUp    bool
@@ -37,14 +37,14 @@ func (s *service) Listen(backend, clients NetConfig) error {
 	backendEndpoint.DELETE("/:token", s.deleteProgress)
 	go startServer(backendEndpoint, backend)
 
-	clientsEndpoint := echo.New()
-	clientsEndpoint.GET("/:token", s.wsHandler)
-	go startServer(clientsEndpoint, clients)
+	listener := newClientListener(s.logger)
 
 	go func() {
 		ticker := time.NewTicker(s.cleanupInterval)
 		for {
 			select {
+			case c := <-listener.Wait(clients):
+				s.wsHandler(c)
 			case p := <-s.channel.Progresses():
 				s.handleProgress(p)
 			case err := <-s.channel.Errors():
@@ -73,8 +73,8 @@ func startServer(server *echo.Echo, config NetConfig) {
 func (s *service) handleProgress(p MetaProgress) {
 	if clients, ok := s.clients[p.Token]; ok {
 		for _, client := range clients {
-			if err := client.WriteJSON(p.Progress); err != nil {
-				s.logger.Printf("error writing to client %s: %s\n", client.RemoteAddr(), err)
+			if err := client.Write(&p.Progress); err != nil {
+				s.logger.Printf("error writing to client: %s\n", err)
 				s.closeWebSocket(client)
 			}
 		}
@@ -94,49 +94,32 @@ func (s *service) cleanupClients() {
 	s.isCleaningUp = false
 }
 
-func (s *service) cleanupTokenClients(clients []*websocket.Conn) []*websocket.Conn {
-	remaining := make([]*websocket.Conn, 0)
+func (s *service) cleanupTokenClients(clients []Client) []Client {
+	remaining := make([]Client, 0)
 	for _, c := range clients {
-		if err := c.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
-			s.logger.Printf("error setting deadline %s", err)
-			s.closeWebSocket(c)
-			continue
-		}
-		if _, _, err := c.ReadMessage(); err != nil {
-			if _, ok := err.(*websocket.CloseError); ok {
-				s.closeWebSocket(c)
-			} else {
-				remaining = append(remaining, c)
-			}
-		} else {
+		if !c.IsAlive() {
 			remaining = append(remaining, c)
+		} else {
+			s.closeWebSocket(c)
 		}
 	}
 
 	return remaining
 }
 
-func (s *service) wsHandler(c echo.Context) error {
-	token := Token(c.Param("token"))
-	ws, err := s.upgrader.Upgrade(c.Response(), c.Request(), nil)
+func (s *service) wsHandler(client Client) {
+	token := client.Token()
 
-	if err != nil {
-		s.logger.Printf("error upgrading protocol: %s\n", err)
-		return c.NoContent(http.StatusInternalServerError)
-	}
 	if progress, err := s.store.Get(token); err == nil {
-		if err := ws.WriteJSON(progress); err != nil {
+		if err := client.Write(progress); err != nil {
 			s.logger.Printf("error writing initial progress state: %s\n", err)
-			s.closeWebSocket(ws)
-			return c.NoContent(http.StatusInternalServerError)
+			s.closeWebSocket(client)
 		}
 	} else {
 		s.logger.Printf("error retrieving initial progress state: %s\n", err)
 	}
 
-	s.clients[token] = append(s.clients[token], ws)
-
-	return nil
+	s.clients[token] = append(s.clients[token], client)
 }
 
 func (s *service) updateProgress(c echo.Context) error {
@@ -182,8 +165,8 @@ func (s *service) deleteProgress(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-func (s *service) closeWebSocket(ws io.Closer) {
-	if err := ws.Close(); err != nil {
+func (s *service) closeWebSocket(client Client) {
+	if err := client.Close(); err != nil {
 		s.logger.Println("error closing client socket")
 	}
 }
