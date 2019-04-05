@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-type client struct {
+type wsClient struct {
 	socket *websocket.Conn
 }
 
-func (c *client) IsAlive() bool {
+func (c *wsClient) IsAlive() bool {
 	if err := c.socket.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
 		return false
 	}
@@ -22,10 +22,10 @@ func (c *client) IsAlive() bool {
 	return true
 }
 
-func (c *client) Write(progress *Progress) error {
+func (c *wsClient) Write(progress *Progress) error {
 	return c.socket.WriteJSON(progress)
 }
 
-func (c *client) Close() error {
+func (c *wsClient) Close() error {
 	return c.socket.Close()
 }

@@ -32,7 +32,7 @@ func (c *websocketListener) wsHandler(ctx echo.Context) error {
 
 	c.clients <- &clientSubscription{
 		Token: token,
-		Client: &client{
+		Client: &wsClient{
 			socket: connection,
 		},
 	}

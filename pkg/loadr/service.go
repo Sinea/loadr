@@ -1,7 +1,6 @@
 package loadr
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -74,14 +73,14 @@ func (s *service) handleProgress(p MetaProgress) {
 	if clients, ok := s.clients[p.Token]; ok {
 		for _, client := range clients {
 			if err := client.Write(&p.Progress); err != nil {
-				s.logger.Printf("error writing to client: %s\n", err)
+				s.logger.Printf("error writing to wsClient: %s\n", err)
 				s.closeWebSocket(client)
 			}
 		}
 	}
 }
 
-// Cleanup client connections
+// Cleanup wsClient connections
 func (s *service) cleanupClients() {
 	if s.isCleaningUp {
 		return
@@ -107,19 +106,17 @@ func (s *service) cleanupTokenClients(clients []Client) []Client {
 	return remaining
 }
 
-func (s *service) wsHandler(client Client) {
-	token := client.Token()
-
-	if progress, err := s.store.Get(token); err == nil {
-		if err := client.Write(progress); err != nil {
+func (s *service) wsHandler(subscription *clientSubscription) {
+	if progress, err := s.store.Get(subscription.Token); err == nil {
+		if err := subscription.Client.Write(progress); err != nil {
 			s.logger.Printf("error writing initial progress state: %s\n", err)
-			s.closeWebSocket(client)
+			s.closeWebSocket(subscription.Client)
 		}
 	} else {
 		s.logger.Printf("error retrieving initial progress state: %s\n", err)
 	}
 
-	s.clients[token] = append(s.clients[token], client)
+	s.clients[subscription.Token] = append(s.clients[subscription.Token], subscription.Client)
 }
 
 func (s *service) updateProgress(c echo.Context) error {
@@ -157,7 +154,7 @@ func (s *service) deleteProgress(c echo.Context) error {
 			s.closeWebSocket(client)
 		}
 	}
-	s.clients[token] = make([]*websocket.Conn, 0)
+	s.clients[token] = make([]Client, 0)
 	if err := s.store.Delete(token); err != nil {
 		s.logger.Printf("error deleting progress for token '%s' : %s\n", token, err)
 		return c.NoContent(http.StatusNotFound)
@@ -167,7 +164,7 @@ func (s *service) deleteProgress(c echo.Context) error {
 
 func (s *service) closeWebSocket(client Client) {
 	if err := client.Close(); err != nil {
-		s.logger.Println("error closing client socket")
+		s.logger.Println("error closing wsClient socket")
 	}
 }
 
@@ -178,7 +175,7 @@ func New(store ProgressStore, channel Channel) Service {
 		upgrader:        websocket.Upgrader{},
 		store:           store,
 		channel:         channel,
-		clients:         map[Token][]*websocket.Conn{},
+		clients:         make(map[Token][]Client),
 		errors:          make(chan error),
 	}
 }
