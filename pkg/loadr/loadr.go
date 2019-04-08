@@ -52,8 +52,8 @@ type ErrorProvider interface {
 
 // ProgressHandler handle progress operations
 type ProgressHandler interface {
-	Delete(token Token) error
-	Set(token Token, progress *Progress, guarantee uint) error
+	Delete(Token) error
+	Set(Token, *Progress, uint) error
 }
 
 // Service that dispatches progress
@@ -61,15 +61,15 @@ type Service interface {
 	ErrorProvider
 	ProgressHandler
 
-	Run(backend BackendListener, clients ClientListener)
-	SetCleanupInterval(duration time.Duration)
+	Run(BackendListener, ClientListener)
+	SetCleanupInterval(time.Duration)
 }
 
 // Store interface for progress persistence
 type Store interface {
-	Get(token Token) (*Progress, error)
-	Set(token Token, progress *Progress) error
-	Delete(token Token) error
+	Get(Token) (*Progress, error)
+	Set(Token, *Progress) error
+	Delete(Token) error
 }
 
 // Channel used to send progresses to other nodes
@@ -83,7 +83,7 @@ type Channel interface {
 
 // Client is a client that can receive progress updates
 type Client interface {
-	Write(progress *Progress) error
+	Write(*Progress) error
 	Close() error
 	IsAlive() bool
 }
@@ -96,5 +96,5 @@ type ClientListener interface {
 
 // BackendListener provides an interface for inputting progresses from backend
 type BackendListener interface {
-	Run(handler ProgressHandler)
+	Run(ProgressHandler)
 }
