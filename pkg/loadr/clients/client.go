@@ -1,13 +1,14 @@
-package loadr
+package clients
 
 import (
-	"github.com/gorilla/websocket"
 	"time"
+
+	"github.com/Sinea/loadr/pkg/loadr"
+	"github.com/gorilla/websocket"
 )
 
 type client struct {
 	socket *websocket.Conn
-	token  Token
 }
 
 func (c *client) IsAlive() bool {
@@ -23,11 +24,7 @@ func (c *client) IsAlive() bool {
 	return true
 }
 
-func (c *client) Token() Token {
-	return c.token
-}
-
-func (c *client) Write(progress *Progress) error {
+func (c *client) Write(progress *loadr.Progress) error {
 	return c.socket.WriteJSON(progress)
 }
 

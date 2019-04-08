@@ -2,8 +2,8 @@ package stores
 
 import (
 	"fmt"
-	"github.com/Sinea/loadr/pkg/loadr"
 
+	"github.com/Sinea/loadr/pkg/loadr"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )

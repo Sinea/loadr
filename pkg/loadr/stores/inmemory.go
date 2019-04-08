@@ -2,6 +2,7 @@ package stores
 
 import (
 	"errors"
+
 	"github.com/Sinea/loadr/pkg/loadr"
 )
 

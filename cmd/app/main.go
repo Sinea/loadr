@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/Sinea/loadr/pkg/loadr"
+	"github.com/Sinea/loadr/pkg/loadr/backend"
 	"github.com/Sinea/loadr/pkg/loadr/channels"
+	"github.com/Sinea/loadr/pkg/loadr/clients"
 	"github.com/Sinea/loadr/pkg/loadr/stores"
 )
 
@@ -18,9 +20,10 @@ func main() {
 
 	backendConfig, clientsConfig := getConfigs()
 
-	if s.Listen(backendConfig, clientsConfig) != nil {
-		log.Fatal("could not start listening")
-	}
+	b := backend.New(backendConfig)
+	f := clients.New(clientsConfig, log.New(os.Stdout, "", 0))
+
+	s.Run(b, f)
 
 	for {
 		log.Println(<-s.Errors())
@@ -37,18 +40,18 @@ func getChannelConfig() interface{} {
 }
 
 func getConfigs() (backendCfg, frontendCfg loadr.NetConfig) {
-	backend := os.Getenv("BACKEND")
-	clients := os.Getenv("CLIENTS")
+	b := os.Getenv("BACKEND")
+	c := os.Getenv("CLIENTS")
 
-	if strings.TrimSpace(backend) == "" {
+	if strings.TrimSpace(b) == "" {
 		log.Fatal("invalid backend address")
 	}
 
-	if strings.TrimSpace(clients) == "" {
+	if strings.TrimSpace(b) == "" {
 		log.Fatal("invalid client address")
 	}
 
-	return loadr.NetConfig{Address: backend}, loadr.NetConfig{Address: clients}
+	return loadr.NetConfig{Address: b}, loadr.NetConfig{Address: c}
 }
 
 func getStore() loadr.ProgressStore {
