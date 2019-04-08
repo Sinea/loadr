@@ -14,10 +14,10 @@ type backend struct {
 
 func (b *backend) Run(handler loadr.ProgressHandler) {
 	b.handler = handler
-	backendEndpoint := echo.New()
-	backendEndpoint.POST("/:token", b.updateProgress)
-	backendEndpoint.DELETE("/:token", b.deleteProgress)
-	go startServer(backendEndpoint, b.config)
+	endpoint := echo.New()
+	endpoint.POST("/:token", b.updateProgress)
+	endpoint.DELETE("/:token", b.deleteProgress)
+	go startServer(endpoint, b.config)
 }
 
 func (b *backend) updateProgress(c echo.Context) error {
