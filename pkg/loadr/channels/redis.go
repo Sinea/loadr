@@ -3,13 +3,17 @@ package channels
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Sinea/loadr/pkg/loadr"
 	"github.com/garyburd/redigo/redis"
 )
 
+const DefaultRedisQueue = "loadr"
+
 type RedisConfig struct {
 	Address string
+	Queue   *string
 }
 
 type redisChannel struct {
@@ -17,7 +21,7 @@ type redisChannel struct {
 	out       chan loadr.MetaProgress
 	errors    chan error
 	isRunning bool
-	queueName string
+	config    RedisConfig
 }
 
 func (r *redisChannel) Close() error {
@@ -31,7 +35,7 @@ func (r *redisChannel) Push(p loadr.MetaProgress) error {
 	if err != nil {
 		return err
 	}
-	if _, err := connection.Do("PUBLISH", r.queueName, bytes); err != nil {
+	if _, err := connection.Do("PUBLISH", r.config.Queue, bytes); err != nil {
 		return err
 	}
 	return nil
@@ -49,7 +53,7 @@ func (r *redisChannel) read() {
 	connection := r.pool.Get()
 	defer r.closeConnection(connection)
 
-	subscription, err := r.subscribe(connection, r.queueName)
+	subscription, err := r.subscribe(connection, *r.config.Queue)
 
 	if err != nil {
 		r.errors <- &loadr.Error{
@@ -121,8 +125,13 @@ func newRedisPool(address string) *redis.Pool {
 func newRedisChannel(config RedisConfig) loadr.Channel {
 	pool := newRedisPool(config.Address)
 
+	if config.Queue == nil || strings.TrimSpace(*config.Queue) == "" {
+		t := DefaultRedisQueue
+		config.Queue = &t
+	}
+
 	result := &redisChannel{
-		queueName: "loadr",
+		config:    config,
 		isRunning: true,
 		pool:      pool,
 		out:       make(chan loadr.MetaProgress),
