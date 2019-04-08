@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"gopkg.in/validator.v2"
 )
 
@@ -20,6 +19,7 @@ type service struct {
 	logger          *log.Logger
 }
 
+// Delete delete the progress for a specific token
 func (s *service) Delete(token Token) error {
 	if clients, ok := s.clients[token]; ok {
 		for _, client := range clients {
@@ -35,12 +35,12 @@ func (s *service) Delete(token Token) error {
 	return nil
 }
 
+// Set update the progress for a token
 func (s *service) Set(token Token, progress *Progress, guarantee uint) error {
 	if err := validator.Validate(progress); err != nil {
 		s.logger.Printf("error validating progress request: %s\n", err)
 		return fmt.Errorf("error validating progress: %s", err)
 	}
-	fmt.Printf("%s %#v", token, progress)
 	if err := s.store.Set(token, progress); err != nil {
 		s.logger.Printf("error saving progress: %s\n", err)
 		if guarantee >= Storage {
@@ -56,6 +56,7 @@ func (s *service) Set(token Token, progress *Progress, guarantee uint) error {
 	return nil
 }
 
+// Run the service
 func (s *service) Run(backend BackendListener, clients ClientListener) {
 	// Listen for backend progress information
 	go backend.Run(s)
@@ -77,10 +78,12 @@ func (s *service) Run(backend BackendListener, clients ClientListener) {
 	}()
 }
 
+// SetCleanupInterval ...
 func (s *service) SetCleanupInterval(duration time.Duration) {
 	s.cleanupInterval = duration
 }
 
+// Errors produced by the service
 func (s *service) Errors() <-chan error {
 	return s.errors
 }
@@ -138,12 +141,14 @@ func (s *service) handleSubscription(subscription *Subscription) {
 	s.clients[token] = append(s.clients[token], subscription.Client)
 }
 
+// closeClient and log the error, if any
 func (s *service) closeClient(client Client) {
 	if err := client.Close(); err != nil {
 		s.logger.Println("error closing client socket")
 	}
 }
 
+// New service
 func New(store ProgressStore, channel Channel) Service {
 	return &service{
 		logger:          log.New(os.Stdout, "", 0),
