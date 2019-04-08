@@ -5,7 +5,14 @@ import (
 
 	"github.com/Sinea/loadr/pkg/loadr"
 	"github.com/labstack/echo"
+	"gopkg.in/validator.v2"
 )
+
+// UpdateProgressRequest request to save new progress
+type UpdateProgressRequest struct {
+	Guarantee uint           `json:"guarantee"`
+	Progress  loadr.Progress `json:"progress"`
+}
 
 type backend struct {
 	config  loadr.NetConfig
@@ -23,9 +30,13 @@ func (b *backend) Run(handler loadr.ProgressHandler) {
 func (b *backend) updateProgress(c echo.Context) error {
 	tokenString := c.Param("token")
 	token := loadr.Token(tokenString)
-	update := &loadr.UpdateProgressRequest{}
+	update := &UpdateProgressRequest{}
 
 	if err := c.Bind(update); err != nil {
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+
+	if err := validator.Validate(update); err != nil {
 		return c.String(http.StatusInternalServerError, err.Error())
 	}
 

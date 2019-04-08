@@ -26,13 +26,7 @@ type Subscription struct {
 	Client Client
 }
 
-// UpdateProgressRequest ...
-type UpdateProgressRequest struct {
-	Guarantee uint     `json:"guarantee" validate:"min=0"`
-	Progress  Progress `json:"progress"`
-}
-
-// Progress ...
+// Progress information
 type Progress struct {
 	Stage    string  `json:"stage" bson:"stage" validate:"min=1,max=200,regexp=^[a-zA-Z0-9]*$"`
 	Progress float32 `json:"progress" bson:"progress" validate:"min=0,max=1"`
@@ -51,12 +45,12 @@ type NetConfig struct {
 	KeyFile  string
 }
 
-// ErrorProvider ...
+// ErrorProvider stream of errors
 type ErrorProvider interface {
 	Errors() <-chan error
 }
 
-// ProgressHandler ...
+// ProgressHandler handle progress operations
 type ProgressHandler interface {
 	Delete(token Token) error
 	Set(token Token, progress *Progress, guarantee uint) error

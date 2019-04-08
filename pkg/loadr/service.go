@@ -78,7 +78,7 @@ func (s *service) Run(backend BackendListener, clients ClientListener) {
 	}()
 }
 
-// SetCleanupInterval ...
+// SetCleanupInterval interval at which to clean up broken clients
 func (s *service) SetCleanupInterval(duration time.Duration) {
 	s.cleanupInterval = duration
 }
