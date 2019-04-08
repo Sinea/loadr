@@ -6,21 +6,24 @@ import (
 	"strings"
 
 	"github.com/Sinea/loadr/pkg/loadr"
+	"github.com/Sinea/loadr/pkg/loadr/backend"
+	"github.com/Sinea/loadr/pkg/loadr/channels"
+	"github.com/Sinea/loadr/pkg/loadr/clients"
+	"github.com/Sinea/loadr/pkg/loadr/stores"
 )
-
-// TODO : Certificates for secure transport
 
 func main() {
 	channelConfig := getChannelConfig()
-	channel := loadr.NewChannel(channelConfig)
+	channel := channels.New(channelConfig)
 	store := getStore()
 	s := loadr.New(store, channel)
 
 	backendConfig, clientsConfig := getConfigs()
 
-	if s.Listen(backendConfig, clientsConfig) != nil {
-		log.Fatal("could not start listening")
-	}
+	b := backend.New(backendConfig)
+	f := clients.New(clientsConfig, log.New(os.Stdout, "", 0))
+
+	s.Run(b, f)
 
 	for {
 		log.Println(<-s.Errors())
@@ -30,33 +33,33 @@ func main() {
 func getChannelConfig() interface{} {
 	redis := os.Getenv("REDIS")
 	if strings.TrimSpace(redis) != "" {
-		return loadr.RedisConfig{Address: redis}
+		return channels.RedisConfig{Address: redis}
 	}
 	// Maybe rabbit? Someday...
 	return nil
 }
 
 func getConfigs() (backendCfg, frontendCfg loadr.NetConfig) {
-	backend := os.Getenv("BACKEND")
-	clients := os.Getenv("CLIENTS")
+	b := os.Getenv("BACKEND")
+	c := os.Getenv("CLIENTS")
 
-	if strings.TrimSpace(backend) == "" {
+	if strings.TrimSpace(b) == "" {
 		log.Fatal("invalid backend address")
 	}
 
-	if strings.TrimSpace(clients) == "" {
+	if strings.TrimSpace(b) == "" {
 		log.Fatal("invalid client address")
 	}
 
-	return loadr.NetConfig{Address: backend}, loadr.NetConfig{Address: clients}
+	return loadr.NetConfig{Address: b}, loadr.NetConfig{Address: c}
 }
 
-func getStore() loadr.ProgressStore {
+func getStore() loadr.Store {
 	var config interface{}
 
 	mongo := strings.TrimSpace(os.Getenv("MONGO"))
 	if mongo != "" {
-		config = loadr.MongoConfig{
+		config = stores.MongoConfig{
 			Address:    mongo,
 			User:       os.Getenv("MONGO_USER"),
 			Pass:       os.Getenv("MONGO_PASS"),
@@ -65,7 +68,7 @@ func getStore() loadr.ProgressStore {
 		}
 	}
 
-	if store, err := loadr.NewStore(config); err != nil {
+	if store, err := stores.New(config); err != nil {
 		log.Fatalf("error creating store: %s", err)
 	} else {
 		return store

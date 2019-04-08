@@ -1,15 +1,17 @@
-package loadr
+package clients
 
 import (
-	"github.com/gorilla/websocket"
 	"time"
+
+	"github.com/Sinea/loadr/pkg/loadr"
+	"github.com/gorilla/websocket"
 )
 
-type wsClient struct {
+type client struct {
 	socket *websocket.Conn
 }
 
-func (c *wsClient) IsAlive() bool {
+func (c *client) IsAlive() bool {
 	if err := c.socket.SetReadDeadline(time.Now().Add(time.Millisecond)); err != nil {
 		return false
 	}
@@ -22,10 +24,10 @@ func (c *wsClient) IsAlive() bool {
 	return true
 }
 
-func (c *wsClient) Write(progress *Progress) error {
+func (c *client) Write(progress *loadr.Progress) error {
 	return c.socket.WriteJSON(progress)
 }
 
-func (c *wsClient) Close() error {
+func (c *client) Close() error {
 	return c.socket.Close()
 }
