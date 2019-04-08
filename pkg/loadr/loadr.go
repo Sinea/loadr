@@ -72,7 +72,7 @@ type Store interface {
 	Delete(Token) error
 }
 
-// Channel used to send progresses to other nodes
+// Channel used to send/receive progresses to other nodes
 type Channel interface {
 	ErrorProvider
 
