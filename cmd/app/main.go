@@ -54,7 +54,7 @@ func getConfigs() (backendCfg, frontendCfg loadr.NetConfig) {
 	return loadr.NetConfig{Address: b}, loadr.NetConfig{Address: c}
 }
 
-func getStore() loadr.ProgressStore {
+func getStore() loadr.Store {
 	var config interface{}
 
 	mongo := strings.TrimSpace(os.Getenv("MONGO"))

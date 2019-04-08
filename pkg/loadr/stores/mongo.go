@@ -46,7 +46,7 @@ func (m *mongoStore) Delete(token loadr.Token) (err error) {
 	return collection.Remove(bson.M{"_id": token})
 }
 
-func newMongoStore(config *MongoConfig) (store loadr.ProgressStore, err error) {
+func newMongoStore(config *MongoConfig) (store loadr.Store, err error) {
 	address := fmt.Sprintf("mongodb://%s:%s@%s/%s", config.User, config.Pass, config.Address, config.Database)
 	session, err := mgo.Dial(address)
 

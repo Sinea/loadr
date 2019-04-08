@@ -65,8 +65,8 @@ type Service interface {
 	SetCleanupInterval(duration time.Duration)
 }
 
-// ProgressStore interface for progress persistence
-type ProgressStore interface {
+// Store interface for progress persistence
+type Store interface {
 	Get(token Token) (*Progress, error)
 	Set(token Token, progress *Progress) error
 	Delete(token Token) error

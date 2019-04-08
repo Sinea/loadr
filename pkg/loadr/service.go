@@ -10,7 +10,7 @@ import (
 )
 
 type service struct {
-	store           ProgressStore
+	store           Store
 	channel         Channel
 	clients         map[Token][]Client
 	errors          chan error
@@ -153,7 +153,7 @@ func (s *service) closeClient(client Client) {
 }
 
 // New service
-func New(store ProgressStore, channel Channel) Service {
+func New(store Store, channel Channel) Service {
 	return &service{
 		logger:          log.New(os.Stdout, "", 0),
 		cleanupInterval: time.Second * 30,

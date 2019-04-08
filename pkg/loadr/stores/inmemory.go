@@ -28,7 +28,7 @@ func (s *inMemory) Delete(token loadr.Token) error {
 	return nil
 }
 
-func newInMemoryStore() (loadr.ProgressStore, error) {
+func newInMemoryStore() (loadr.Store, error) {
 	return &inMemory{
 		data: make(map[loadr.Token]*loadr.Progress),
 	}, nil
