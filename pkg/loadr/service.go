@@ -11,7 +11,6 @@ import (
 )
 
 type service struct {
-	upgrader        websocket.Upgrader
 	store           ProgressStore
 	channel         Channel
 	clients         map[Token][]Client
@@ -149,7 +148,6 @@ func New(store ProgressStore, channel Channel) Service {
 	return &service{
 		logger:          log.New(os.Stdout, "", 0),
 		cleanupInterval: time.Second * 30,
-		upgrader:        websocket.Upgrader{},
 		store:           store,
 		channel:         channel,
 		clients:         make(map[Token][]Client),
