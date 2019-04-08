@@ -1,9 +1,10 @@
-package loadr
+package channels
 
 import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Sinea/loadr/pkg/loadr"
 	"github.com/garyburd/redigo/redis"
 )
 
@@ -13,7 +14,7 @@ type RedisConfig struct {
 
 type redisChannel struct {
 	pool      *redis.Pool
-	out       chan MetaProgress
+	out       chan loadr.MetaProgress
 	errors    chan error
 	isRunning bool
 	queueName string
@@ -24,7 +25,7 @@ func (r *redisChannel) Close() error {
 	return nil
 }
 
-func (r *redisChannel) Push(p MetaProgress) error {
+func (r *redisChannel) Push(p loadr.MetaProgress) error {
 	connection := r.pool.Get()
 	bytes, err := json.Marshal(p)
 	if err != nil {
@@ -36,7 +37,7 @@ func (r *redisChannel) Push(p MetaProgress) error {
 	return nil
 }
 
-func (r *redisChannel) Progresses() <-chan MetaProgress {
+func (r *redisChannel) Progresses() <-chan loadr.MetaProgress {
 	return r.out
 }
 
@@ -51,9 +52,9 @@ func (r *redisChannel) read() {
 	subscription, err := r.subscribe(connection, r.queueName)
 
 	if err != nil {
-		r.errors <- &Error{
+		r.errors <- &loadr.Error{
 			Message: fmt.Sprintf("error subscribing: %s", err),
-			Code:    ChannelSubscribeError,
+			Code:    loadr.ChannelSubscribeError,
 		}
 		return
 	}
@@ -71,11 +72,11 @@ func (r *redisChannel) receive(subscription *redis.PubSubConn) {
 
 func (r *redisChannel) readMessage(subscription *redis.PubSubConn) {
 	if message, ok := subscription.Receive().(redis.Message); ok {
-		p := MetaProgress{}
+		p := loadr.MetaProgress{}
 		if err := json.Unmarshal(message.Data, &p); err != nil {
-			r.errors <- &Error{
+			r.errors <- &loadr.Error{
 				Message: fmt.Sprintf("error unmarshalling progress: %s", err),
-				Code:    ChannelUnmarshalError,
+				Code:    loadr.ChannelUnmarshalError,
 			}
 		} else {
 			r.out <- p
@@ -85,18 +86,18 @@ func (r *redisChannel) readMessage(subscription *redis.PubSubConn) {
 
 func (r *redisChannel) closeSubscription(subscription *redis.PubSubConn) {
 	if err := subscription.Close(); err != nil {
-		r.errors <- &Error{
+		r.errors <- &loadr.Error{
 			Message: fmt.Sprintf("error unsubscribing: %s", err),
-			Code:    ChannelCloseError,
+			Code:    loadr.ChannelCloseError,
 		}
 	}
 }
 
 func (r *redisChannel) closeConnection(connection redis.Conn) {
 	if err := connection.Close(); err != nil {
-		r.errors <- &Error{
+		r.errors <- &loadr.Error{
 			Message: fmt.Sprintf("error closing connection: %s", err),
-			Code:    ChannelCloseError,
+			Code:    loadr.ChannelCloseError,
 		}
 	}
 }
@@ -117,14 +118,14 @@ func newRedisPool(address string) *redis.Pool {
 	}
 }
 
-func newRedisChannel(config RedisConfig) Channel {
+func newRedisChannel(config RedisConfig) loadr.Channel {
 	pool := newRedisPool(config.Address)
 
 	result := &redisChannel{
 		queueName: "loadr",
 		isRunning: true,
 		pool:      pool,
-		out:       make(chan MetaProgress),
+		out:       make(chan loadr.MetaProgress),
 		errors:    make(chan error),
 	}
 

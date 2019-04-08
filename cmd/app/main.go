@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/Sinea/loadr/pkg/loadr"
+	"github.com/Sinea/loadr/pkg/loadr/channels"
+	"github.com/Sinea/loadr/pkg/loadr/stores"
 )
-
-// TODO : Certificates for secure transport
 
 func main() {
 	channelConfig := getChannelConfig()
-	channel := loadr.NewChannel(channelConfig)
+	channel := channels.New(channelConfig)
 	store := getStore()
 	s := loadr.New(store, channel)
 
@@ -30,7 +30,7 @@ func main() {
 func getChannelConfig() interface{} {
 	redis := os.Getenv("REDIS")
 	if strings.TrimSpace(redis) != "" {
-		return loadr.RedisConfig{Address: redis}
+		return channels.RedisConfig{Address: redis}
 	}
 	// Maybe rabbit? Someday...
 	return nil
@@ -56,7 +56,7 @@ func getStore() loadr.ProgressStore {
 
 	mongo := strings.TrimSpace(os.Getenv("MONGO"))
 	if mongo != "" {
-		config = loadr.MongoConfig{
+		config = stores.MongoConfig{
 			Address:    mongo,
 			User:       os.Getenv("MONGO_USER"),
 			Pass:       os.Getenv("MONGO_PASS"),
@@ -65,7 +65,7 @@ func getStore() loadr.ProgressStore {
 		}
 	}
 
-	if store, err := loadr.NewStore(config); err != nil {
+	if store, err := stores.New(config); err != nil {
 		log.Fatalf("error creating store: %s", err)
 	} else {
 		return store

@@ -74,9 +74,5 @@ type Client interface {
 
 type ClientListener interface {
 	Wait(config NetConfig) <-chan Client
-}
-
-type Dispatcher interface {
-	Dispatch(token Token, progress Progress)
-	Cleanup()
+	Close() error
 }

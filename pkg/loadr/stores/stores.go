@@ -1,6 +1,8 @@
-package loadr
+package stores
 
-func NewStore(config interface{}) (ProgressStore, error) {
+import "github.com/Sinea/loadr/pkg/loadr"
+
+func New(config interface{}) (loadr.ProgressStore, error) {
 	switch c := config.(type) {
 	case MongoConfig:
 		return newMongoStore(&c)

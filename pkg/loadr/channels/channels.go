@@ -1,6 +1,8 @@
-package loadr
+package channels
 
-func NewChannel(config interface{}) Channel {
+import "github.com/Sinea/loadr/pkg/loadr"
+
+func New(config interface{}) loadr.Channel {
 	switch c := config.(type) {
 	case RedisConfig:
 		return newRedisChannel(c)
