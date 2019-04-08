@@ -28,8 +28,9 @@ func (s *service) Delete(token Token) error {
 	}
 	s.clients[token] = make([]Client, 0)
 	if err := s.store.Delete(token); err != nil {
-		s.logger.Printf("error deleting progress for token '%s' : %s\n", token, err)
-		return fmt.Errorf("error deleting progress for token '%s' : %s", token, err)
+		err := fmt.Errorf("error deleting progress for token '%s' : %s", token, err)
+		s.logger.Println(err)
+		return err
 	}
 
 	return nil
@@ -38,19 +39,22 @@ func (s *service) Delete(token Token) error {
 // Set update the progress for a token
 func (s *service) Set(token Token, progress *Progress, guarantee uint) error {
 	if err := validator.Validate(progress); err != nil {
-		s.logger.Printf("error validating progress request: %s\n", err)
-		return fmt.Errorf("error validating progress: %s", err)
+		err := fmt.Errorf("error validating progress: %s", err)
+		s.logger.Println(err)
+		return err
 	}
 	if err := s.store.Set(token, progress); err != nil {
-		s.logger.Printf("error saving progress: %s\n", err)
+		err := fmt.Errorf("error saving progress: %s", err)
+		s.logger.Println(err)
 		if guarantee >= Storage {
-			return fmt.Errorf("error saving progress: %s", err)
+			return err
 		}
 	}
 	if err := s.channel.Push(MetaProgress{token, *progress}); err != nil {
-		s.logger.Printf("error broadcasting progress: %s\n", err)
+		err := fmt.Errorf("error broadcasting progress: %s", err)
+		s.logger.Println(err)
 		if guarantee >= Broadcast {
-			return fmt.Errorf("error broadcasting progress: %s", err)
+			return err
 		}
 	}
 	return nil
