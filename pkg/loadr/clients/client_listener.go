@@ -27,7 +27,9 @@ func (c *clientListener) Wait() <-chan *loadr.Subscription {
 }
 
 func (c *clientListener) Close() error {
-	return c.endpoint.Close()
+	err := c.endpoint.Close()
+	c.endpoint = nil
+	return err
 }
 
 func (c *clientListener) websocketHandler(ctx echo.Context) error {
