@@ -60,7 +60,8 @@ type ProgressHandler interface {
 type Service interface {
 	ErrorProvider
 	ProgressHandler
-
+	HandleProgress(progress MetaProgress)
+	HandleSubscription(subscription *Subscription)
 	Run(BackendListener, ClientListener)
 	SetCleanupInterval(time.Duration)
 }

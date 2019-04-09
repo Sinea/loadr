@@ -3,7 +3,6 @@ package loadr
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"gopkg.in/validator.v2"
@@ -70,9 +69,9 @@ func (s *service) Run(backend BackendListener, clients ClientListener) {
 		for {
 			select {
 			case subscription := <-clients.Wait():
-				s.handleSubscription(subscription)
+				s.HandleSubscription(subscription)
 			case p := <-s.channel.Progresses():
-				s.handleProgress(p)
+				s.HandleProgress(p)
 			case err := <-s.channel.Errors():
 				s.errors <- err
 			case <-ticker.C:
@@ -93,7 +92,7 @@ func (s *service) Errors() <-chan error {
 }
 
 // Handle an incoming progress
-func (s *service) handleProgress(progress MetaProgress) {
+func (s *service) HandleProgress(progress MetaProgress) {
 	if clients, ok := s.clients[progress.Token]; ok {
 		for _, client := range clients {
 			if err := client.Write(&progress.Progress); err != nil {
@@ -130,7 +129,7 @@ func (s *service) cleanupTokenClients(clients []Client) []Client {
 	return remaining
 }
 
-func (s *service) handleSubscription(subscription *Subscription) {
+func (s *service) HandleSubscription(subscription *Subscription) {
 	token := subscription.Token
 
 	if progress, err := s.store.Get(token); err == nil {
@@ -153,9 +152,9 @@ func (s *service) closeClient(client Client) {
 }
 
 // New service
-func New(store Store, channel Channel) Service {
+func New(store Store, channel Channel, logger *log.Logger) Service {
 	return &service{
-		logger:          log.New(os.Stdout, "", 0),
+		logger:          logger,
 		cleanupInterval: time.Second * 30,
 		store:           store,
 		channel:         channel,
