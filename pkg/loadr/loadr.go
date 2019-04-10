@@ -60,6 +60,7 @@ type ProgressHandler interface {
 type Service interface {
 	ErrorProvider
 	ProgressHandler
+	CleanupClients()
 	HandleProgress(progress MetaProgress)
 	HandleSubscription(subscription *Subscription)
 	Run(BackendListener, ClientListener)

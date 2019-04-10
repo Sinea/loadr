@@ -3,19 +3,20 @@ package loadr
 import (
 	"fmt"
 	"log"
+	"sync/atomic"
 	"time"
 
 	"gopkg.in/validator.v2"
 )
 
 type service struct {
-	store           Store
-	channel         Channel
-	clients         map[Token][]Client
-	errors          chan error
-	cleanupInterval time.Duration
-	isCleaningUp    bool
-	logger          *log.Logger
+	store             Store
+	channel           Channel
+	clients           map[Token][]Client
+	errors            chan error
+	cleanupInterval   time.Duration
+	isRunningCleaning uint32
+	logger            *log.Logger
 }
 
 // Delete delete the progress for a specific token
@@ -75,7 +76,7 @@ func (s *service) Run(backend BackendListener, clients ClientListener) {
 			case err := <-s.channel.Errors():
 				s.errors <- err
 			case <-ticker.C:
-				go s.cleanupClients()
+				go s.CleanupClients()
 			}
 		}
 	}()
@@ -103,23 +104,22 @@ func (s *service) HandleProgress(progress MetaProgress) {
 	}
 }
 
-// Cleanup client connections
-func (s *service) cleanupClients() {
-	if s.isCleaningUp {
+// Cleanup dead client connections
+func (s *service) CleanupClients() {
+	if atomic.CompareAndSwapUint32(&s.isRunningCleaning, 0, 1) {
 		return
 	}
-	s.isCleaningUp = true
 	for token, clients := range s.clients {
-		// TODO : Lock
+		// TODO : Lock?
 		s.clients[token] = s.cleanupTokenClients(clients)
 	}
-	s.isCleaningUp = false
+	atomic.CompareAndSwapUint32(&s.isRunningCleaning, 1, 0)
 }
 
 func (s *service) cleanupTokenClients(clients []Client) []Client {
 	remaining := make([]Client, 0)
 	for _, c := range clients {
-		if !c.IsAlive() {
+		if c.IsAlive() {
 			remaining = append(remaining, c)
 		} else {
 			s.closeClient(c)
