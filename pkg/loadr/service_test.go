@@ -119,7 +119,7 @@ func TestService_HandleSubscription_WithStoreError(t *testing.T) {
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
 
-	s.HandleSubscription(&Subscription{Token: Token("x")})
+	s.Subscribe(&Subscription{Token: Token("x")})
 }
 
 func TestService_HandleSubscription_WithoutStoreError(t *testing.T) {
@@ -138,7 +138,7 @@ func TestService_HandleSubscription_WithoutStoreError(t *testing.T) {
 	bb := new(bytes.Buffer)
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: client})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: client})
 }
 
 func TestService_HandleSubscription_WithoutStoreErrorAndClientError(t *testing.T) {
@@ -158,7 +158,7 @@ func TestService_HandleSubscription_WithoutStoreErrorAndClientError(t *testing.T
 	bb := new(bytes.Buffer)
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: client})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: client})
 }
 
 func TestService_HandleProgress_ClientWriteError(t *testing.T) {
@@ -178,7 +178,7 @@ func TestService_HandleProgress_ClientWriteError(t *testing.T) {
 	bb := new(bytes.Buffer)
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: client})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: client})
 	s.HandleProgress(MetaProgress{Token: Token("x"), Progress: Progress{Stage: "x", Progress: 0}})
 }
 
@@ -199,7 +199,7 @@ func TestService_HandleProgress_ClientWriteSucces(t *testing.T) {
 	bb := new(bytes.Buffer)
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: client})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: client})
 	s.HandleProgress(MetaProgress{Token: Token("x"), Progress: Progress{Stage: "x", Progress: 0}})
 }
 
@@ -242,7 +242,7 @@ func TestService_Delete_Fails(t *testing.T) {
 	bb := new(bytes.Buffer)
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: client})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: client})
 	err := s.Delete(Token("x"))
 
 	assert.Error(t, err)
@@ -346,15 +346,52 @@ func TestService_CleanupClients(t *testing.T) {
 	bb := new(bytes.Buffer)
 	testLogger := log.New(bb, "", 0)
 	s := New(store, channel, testLogger)
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: clientA})
-	s.HandleSubscription(&Subscription{Token: Token("x"), Client: clientB})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: clientA})
+	s.Subscribe(&Subscription{Token: Token("x"), Client: clientB})
 	go s.CleanupClients()
 	go s.CleanupClients()
 	//time.Sleep(time.Millisecond*20)
 	<-clientB.isAliveReturned
 }
 
-func TestService_SetCleanupInterval(t *testing.T) {
-	s := New(nil, nil, nil)
-	s.SetCleanupInterval(time.Second)
+func TestService_Errors(t *testing.T) {
+	store := &mockStore{}
+	store.On("Get").Twice().Return(nil, errors.New("store error"))
+	channelErrors := make(chan error, 1)
+	channelErrors <- errors.New("channel error")
+	channel := &mockChannel{}
+	channel.On("Errors").Return(channelErrors)
+	channel.On("Progresses").Return(make(chan MetaProgress))
+
+	bb := new(bytes.Buffer)
+	testLogger := log.New(bb, "", 0)
+	s := New(store, channel, testLogger)
+	b := &backendListenerMock{}
+	b.On("Run").Return()
+	c := &mockClientsListener{}
+	c.On("Wait").Return(make(chan *Subscription))
+
+	s.Run(b, c)
+	err := <-s.Errors()
+
+	assert.Error(t, err)
+}
+
+func TestService_RunCleanup(t *testing.T) {
+	store := &mockStore{}
+	store.On("Get").Twice().Return(nil, errors.New("store error"))
+	channel := &mockChannel{}
+	channel.On("Errors").Return(make(chan error))
+	channel.On("Progresses").Return(make(chan MetaProgress))
+
+	bb := new(bytes.Buffer)
+	testLogger := log.New(bb, "", 0)
+	s := New(store, channel, testLogger)
+	b := &backendListenerMock{}
+	b.On("Run").Return()
+	c := &mockClientsListener{}
+	c.On("Wait").Return(make(chan *Subscription))
+	s.SetCleanupInterval(time.Millisecond)
+	s.Run(b, c)
+	time.Sleep(time.Millisecond * 10)
 }

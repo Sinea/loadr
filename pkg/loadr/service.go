@@ -3,30 +3,24 @@ package loadr
 import (
 	"fmt"
 	"log"
-	"sync/atomic"
 	"time"
 
 	"gopkg.in/validator.v2"
 )
 
 type service struct {
-	store             Store
-	channel           Channel
-	clients           map[Token][]Client
-	errors            chan error
-	cleanupInterval   time.Duration
-	isRunningCleaning uint32
-	logger            *log.Logger
+	store           Store
+	channel         Channel
+	clients         clientsBucket
+	errors          chan error
+	cleanupInterval time.Duration
+	logger          *log.Logger
 }
 
 // Delete delete the progress for a specific token
 func (s *service) Delete(token Token) error {
-	if clients, ok := s.clients[token]; ok {
-		for _, client := range clients {
-			s.closeClient(client)
-		}
-	}
-	s.clients[token] = make([]Client, 0)
+	s.clients.ClearToken(token)
+
 	if err := s.store.Delete(token); err != nil {
 		err := fmt.Errorf("error deleting progress for token '%s' : %s", token, err)
 		s.logger.Println(err)
@@ -60,105 +54,33 @@ func (s *service) Set(token Token, progress *Progress, guarantee uint) error {
 	return nil
 }
 
-// Run the service
-func (s *service) Run(backend BackendListener, clients ClientListener) {
-	// Listen for backend progress information
-	go backend.Run(s)
-
-	go func() {
-		ticker := time.NewTicker(s.cleanupInterval)
-		for {
-			select {
-			case subscription := <-clients.Wait():
-				s.HandleSubscription(subscription)
-			case p := <-s.channel.Progresses():
-				s.HandleProgress(p)
-			case err := <-s.channel.Errors():
-				s.errors <- err
-			case <-ticker.C:
-				go s.CleanupClients()
-			}
-		}
-	}()
-}
-
-// SetCleanupInterval interval at which to clean up broken clients
-func (s *service) SetCleanupInterval(duration time.Duration) {
-	s.cleanupInterval = duration
-}
-
-// Errors produced by the service
-func (s *service) Errors() <-chan error {
-	return s.errors
-}
-
 // Handle an incoming progress
 func (s *service) HandleProgress(progress MetaProgress) {
-	if clients, ok := s.clients[progress.Token]; ok {
-		for _, client := range clients {
-			if err := client.Write(&progress.Progress); err != nil {
-				s.logger.Printf("error writing to client: %s\n", err)
-				s.closeClient(client)
-			}
-		}
-	}
+	s.clients.Send(progress.Token, &progress.Progress)
 }
 
-// Cleanup dead client connections
-func (s *service) CleanupClients() {
-	if atomic.CompareAndSwapUint32(&s.isRunningCleaning, 0, 1) {
-		return
-	}
-	for token, clients := range s.clients {
-		// TODO : Lock?
-		s.clients[token] = s.cleanupTokenClients(clients)
-	}
-	atomic.CompareAndSwapUint32(&s.isRunningCleaning, 1, 0)
-}
-
-func (s *service) cleanupTokenClients(clients []Client) []Client {
-	remaining := make([]Client, 0)
-	for _, c := range clients {
-		if c.IsAlive() {
-			remaining = append(remaining, c)
-		} else {
-			s.closeClient(c)
-		}
-	}
-
-	return remaining
-}
-
-func (s *service) HandleSubscription(subscription *Subscription) {
-	token := subscription.Token
-
+func (s *service) Subscribe(token Token, client Client) {
 	if progress, err := s.store.Get(token); err == nil {
-		if err := subscription.Client.Write(progress); err != nil {
+		if err := client.Write(progress); err != nil {
 			s.logger.Printf("error writing initial progress state: %s\n", err)
-			s.closeClient(subscription.Client)
 		}
 	} else {
 		s.logger.Printf("error retrieving initial progress state: %s\n", err)
 	}
 
-	s.clients[token] = append(s.clients[token], subscription.Client)
-}
-
-// closeClient and log the error, if any
-func (s *service) closeClient(client Client) {
-	if err := client.Close(); err != nil {
-		s.logger.Println("error closing client socket")
-	}
+	s.clients.AddClient(token, client)
 }
 
 // New service
 func New(store Store, channel Channel, logger *log.Logger) Service {
 	return &service{
-		logger:          logger,
-		cleanupInterval: time.Second * 30,
-		store:           store,
-		channel:         channel,
-		clients:         make(map[Token][]Client),
-		errors:          make(chan error),
+		logger:  logger,
+		store:   store,
+		channel: channel,
+		clients: clientsBucket{
+			logger:  logger,
+			clients: make(map[Token][]Client),
+		},
+		errors: make(chan error),
 	}
 }

@@ -1,7 +1,5 @@
 package loadr
 
-import "time"
-
 const (
 	_ uint = iota
 	Storage
@@ -58,13 +56,10 @@ type ProgressHandler interface {
 
 // Service that dispatches progress
 type Service interface {
-	ErrorProvider
 	ProgressHandler
-	CleanupClients()
+	// Move this
 	HandleProgress(progress MetaProgress)
-	HandleSubscription(subscription *Subscription)
-	Run(BackendListener, ClientListener)
-	SetCleanupInterval(time.Duration)
+	Subscribe(Token, Client)
 }
 
 // Store interface for progress persistence

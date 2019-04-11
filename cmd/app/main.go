@@ -1,33 +1,43 @@
 package main
 
 import (
-	"log"
-	"os"
-	"strings"
-
+	"fmt"
 	"github.com/Sinea/loadr/pkg/loadr"
 	"github.com/Sinea/loadr/pkg/loadr/backend"
 	"github.com/Sinea/loadr/pkg/loadr/channels"
 	"github.com/Sinea/loadr/pkg/loadr/clients"
 	"github.com/Sinea/loadr/pkg/loadr/stores"
+	"log"
+	"os"
+	"strings"
 )
 
 func main() {
 	channelConfig := getChannelConfig()
 	channel := channels.New(channelConfig)
 	store := getStore()
-	s := loadr.New(store, channel)
+	s := loadr.New(store, channel, log.New(os.Stdout, "", 0))
 
 	backendConfig, clientsConfig := getConfigs()
 
 	b := backend.New(backendConfig)
 	f := clients.New(clientsConfig, log.New(os.Stdout, "", 0))
 
-	s.Run(b, f)
+	go b.Run(s)
+	//s.Run(b, f)
 
-	for {
-		log.Println(<-s.Errors())
-	}
+	go func() {
+		for {
+			select {
+			case subscription := <-f.Wait():
+				s.Subscribe(subscription.Token, subscription.Client)
+			case p := <-channel.Progresses():
+				s.HandleProgress(p)
+			case err := <-channel.Errors():
+				fmt.Println(err)
+			}
+		}
+	}()
 }
 
 func getChannelConfig() interface{} {
