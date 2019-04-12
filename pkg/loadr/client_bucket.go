@@ -30,6 +30,7 @@ func (c *clientsBucket) ClearToken(token Token) {
 			c.closeClient(client)
 		}
 	}
+	delete(c.clients, token)
 }
 
 // AddClient to the clients map
@@ -45,8 +46,10 @@ func (c *clientsBucket) CleanupClients() {
 	defer atomic.CompareAndSwapUint32(&c.isRunningCleaning, 1, 0)
 	// Cleanup clients one token at a time
 	for token, clients := range c.clients {
+		temp := c.cleanupTokenClients(clients)
 		// TODO : Lock?
-		c.clients[token] = c.cleanupTokenClients(clients)
+		c.clients[token] = temp
+		// TODO : Unlock
 	}
 }
 

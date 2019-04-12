@@ -24,7 +24,6 @@ func main() {
 	f := clients.New(clientsConfig, log.New(os.Stdout, "", 0))
 
 	go b.Run(s)
-	//s.Run(b, f)
 
 	go func() {
 		for {
