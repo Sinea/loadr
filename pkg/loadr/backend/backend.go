@@ -24,7 +24,7 @@ func (b *backend) Run(handler loadr.ProgressHandler) {
 	endpoint := echo.New()
 	endpoint.POST("/:token", b.updateProgress)
 	endpoint.DELETE("/:token", b.deleteProgress)
-	go startServer(endpoint, b.config)
+	startServer(endpoint, b.config)
 }
 
 func (b *backend) updateProgress(c echo.Context) error {
