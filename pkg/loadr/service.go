@@ -11,7 +11,7 @@ import (
 type service struct {
 	store           Store
 	channel         Channel
-	clients         clientsBucket
+	clients         clientsManager
 	errors          chan error
 	cleanupInterval time.Duration
 	logger          *log.Logger
@@ -70,7 +70,7 @@ func New(store Store, channel Channel, logger *log.Logger) Service {
 		logger:  logger,
 		store:   store,
 		channel: channel,
-		clients: clientsBucket{
+		clients: clientsManager{
 			logger:  logger,
 			clients: make(map[Token][]Client),
 		},
